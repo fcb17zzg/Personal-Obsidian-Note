@@ -1,0 +1,8 @@
+{
+  "phycat-layout@@layout-style": "layout-cards",
+  "phycat-colors@@light-color-scheme": "theme-light-forest",
+  "phycat-colors@@dark-color-scheme": "theme-dark-radiation",
+  "phycat-headings@@h2-style-select": "h2-style-twin",
+  "phycat-spacing@@file-line-width": 720,
+  "phycat-spacing@@line-height-customize": 2.2
+}
