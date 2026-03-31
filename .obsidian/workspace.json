@@ -20,24 +20,37 @@
               "icon": "lucide-file",
               "title": "《DDIA》阅读笔记"
             }
-          }
-        ]
-      },
-      {
-        "id": "b8b303a8ebd2c9a1",
-        "type": "tabs",
-        "children": [
+          },
+          {
+            "id": "b7d79906555efec6",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "Anthropic博客笔记.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Anthropic博客笔记"
+            }
+          },
           {
             "id": "58963d7528081516",
             "type": "leaf",
             "state": {
-              "type": "graph",
-              "state": {},
-              "icon": "lucide-git-fork",
-              "title": "关系图谱"
+              "type": "markdown",
+              "state": {
+                "file": "《DDIA》阅读笔记.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "《DDIA》阅读笔记"
             }
           }
-        ]
+        ],
+        "currentTab": 2
       }
     ],
     "direction": "vertical"
@@ -197,13 +210,16 @@
       "bases:新建数据库": false
     }
   },
-  "active": "07568066865c9923",
+  "active": "58963d7528081516",
   "lastOpenFiles": [
+    "Pasted image 20260331222636.png",
+    "Pasted image 20260331212106.png",
     "《DDIA》阅读笔记.md",
-    "《程序员的README》阅读笔记.md",
+    "Anthropic博客笔记.md",
     "《极端的年代》阅读笔记.md",
     "《技术为径》笔记与读后感.md",
     "《深度入门学习》阅读笔记.md",
+    "《程序员的README》阅读笔记.md",
     "神经网络.md",
     "未命名/obsidian-skills-main/skills/obsidian-bases/references/FUNCTIONS_REFERENCE.md",
     "未命名/obsidian-skills-main/skills/json-canvas/references/EXAMPLES.md",
