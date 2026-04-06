@@ -388,3 +388,304 @@ db.observations.aggregate([
 #### 文档和关系数据库的融合
 略
 ## 图数据模型
+- 图由两种对象组成：_顶点_（也称为 _节点_ 或 _实体_）和 _边_（也称为 _关系_ 或 _弧_）。
+- 图的一个同样强大的用途是提供一种一致的方式在单个数据库中存储完全不同类型的对象。例如：
+	- Facebook 维护一个包含许多不同类型顶点和边的单一图：顶点表示人员、位置、事件、签到和用户发表的评论；边表示哪些人彼此是朋友、哪个签到发生在哪个位置、谁评论了哪个帖子、谁参加了哪个事件等等 [33](https://ddia.vonng.com/ch3/#fn:33)。
+	- 知识图被搜索引擎用来记录搜索查询中经常出现的实体（如组织、人员和地点）的事实 [34](https://ddia.vonng.com/ch3/#fn:34)。这些信息通过爬取和分析网站上的文本获得；一些网站（如 Wikidata）也以结构化形式发布图数据。
+- _属性图_ 模型 x _三元组存储_ 模型
+- 图的四种查询语言（Cypher、SPARQL、Datalog 和 GraphQL），以及用于查询图的 SQL 支持
+- 为了说明这些不同的语言和模型，本节使用 [图 3-6](https://ddia.vonng.com/ch3/#fig_datamodels_graph) 中显示的图作为运行示例。它可能取自社交网络或家谱数据库：它显示了两个人，来自爱达荷州的 Lucy 和来自法国圣洛的 Alain。他们已婚并住在伦敦。每个人和每个位置都表示为顶点，它们之间的关系表示为边。此示例将帮助演示一些在图数据库中很容易但在其他模型中很困难的查询。
+
+![](https://ddia.vonng.com/fig/ddia_0306.png)
+
+图 3-6. 图结构数据示例（框表示顶点，箭头表示边）。
+### 属性图
+**属性图**就是一种用“圆圈（顶点）”和“箭头（边）”来存储数据的方式。
+- **顶点**：代表一个人、一个地方或一件东西。每个顶点都有**类型标签**（比如“人”或“城市”）和**属性**（比如名字、年龄）。
+- **边**：代表两个顶点之间的**关系**（比如“住在”或“认识”）。每条边也有**类型标签**（比如“朋友”）和**属性**（比如“从2015年开始”）。
+**最大的优点**：非常灵活，可以轻松地添加新类型的关系和属性，不需要像传统表格那样频繁修改表结构。特别适合处理关系复杂、经常变化的数据。
+### Cypher 查询语言
+**Cypher 是一种看图数据库的查询语言**，写法就像在纸上画图：用 `(圆括号)` 表示点，用 `-[:箭头]->` 表示边。
+- 示例1：插入数据（示例3-4）
+```cypher
+CREATE
+    (namerica :Location {name:'North America', type:'continent'}),
+    (usa :Location {name:'United States', type:'country'}),
+    (idaho :Location {name:'Idaho', type:'state'}),
+    (lucy :Person {name:'Lucy'}),
+    (idaho) -[:WITHIN]-> (usa) -[:WITHIN]-> (namerica),
+    (lucy) -[:BORN_IN]-> (idaho)
+```
+创建了4个点：北美、美国、爱达荷州、Lucy
+画了两条边：爱达荷州 → 在美国内 → 北美，以及 Lucy → 出生在 → 爱达荷州
+- 示例2：查询数据（示例3-5）
+```cypher
+
+MATCH
+    (person) -[:BORN_IN]-> () -[:WITHIN*0..]-> (:Location {name:'United States'}),
+    (person) -[:LIVES_IN]-> () -[:WITHIN*0..]-> (:Location {name:'Europe'})
+RETURN person.name
+```
+找这样的人：
+    1. 他 **出生在** 某个地方，那个地方 **直接或间接属于** 美国
+    2. 他 **居住在** 某个地方，那个地方 **直接或间接属于** 欧洲
+找到后，返回他的名字
+**`*0..` 的意思**：走0步或多步（比如美国→北美是1步，如果就在美国本土就是0步）
+### SQL 中的图查询
+略
+### 三元组存储与 SPARQL
+- **三元组存储就是用“一句话”来存数据**。每句话有3个部分：
+> 	**(主语, 谓语, 宾语)**
+	- **主语**：谁/什么（相当于图的**顶点**）
+	- **谓语**：做什么/有什么属性/有什么关系（相当于**边的标签**或**属性的键**）
+	- **宾语**：值或另一个顶点
+	举个例子：`(Jim, 喜欢, 香蕉)` 就是一条三元组。
+-  示例：用三元组表示图3-6的数据
+**示例3-7**（Turtle格式）：
+```turtle
+@prefix : <urn:example:>.
+_:lucy a :Person.
+_:lucy :name "Lucy".
+_:lucy :bornIn _:idaho.
+_:idaho a :Location.
+_:idaho :name "Idaho".
+_:idaho :type "state".
+_:idaho :within _:usa.
+_:usa a :Location.
+_:usa :name "United States".
+_:usa :type "country".
+_:usa :within _:namerica.
+_:namerica a :Location.
+_:namerica :name "North America".
+_:namerica :type "continent".
+```
+每条`.`结尾的都是一条三元组（一句话）：
+- `_:lucy :name "Lucy"` → Lucy的名字是Lucy
+- `_:lucy :bornIn _:idaho` → Lucy出生在爱达荷
+- `_:idaho :within _:usa` → 爱达荷在美国内
+- `_:usa :within _:namerica` → 美国在北美内
+**`_:xxx`** 是临时名字（只在这个文件里有效，用来表示同一个顶点）
+**`a`** 是特殊谓语，表示"是一个"（比如 `_:lucy a :Person` = Lucy是一个人）
+-  更简洁的写法（示例3-8）
+```turtle
+
+@prefix : <urn:example:>.
+_:lucy a :Person; :name "Lucy"; :bornIn _:idaho.
+_:idaho a :Location; :name "Idaho"; :type "state"; :within _:usa.
+_:usa a :Location; :name "United States"; :type "country"; :within _:namerica.
+_:namerica a :Location; :name "North America"; :type "continent".
+```
+- 用`;`分号把同一个主语的多个谓语/宾语连起来写
+- 更短、更易读
+#### RDF 数据模型
+#### SPARQL 查询语言
+### Datalog：递归关系查询
+Datalog 数据库的内容由 _事实_ 组成，每个事实对应于关系表中的一行。例如，假设我们有一个包含位置的表 _location_，它有三列：_ID_、_name_ 和 _type_。美国是一个国家的事实可以写成 `location(2, "United States", "country")`，其中 `2` 是美国的 ID。一般来说，语句 `table(val1, val2, …​)` 意味着 `table` 包含一行，其中第一列包含 `val1`，第二列包含 `val2`，依此类推。
+### GraphQL
+**GraphQL 是一种查询语言，但从设计上比 Cypher、SPARQL 等限制性更强**。它的主要目的是让客户端（如手机 App、网页前端）能精确请求自己需要的 JSON 数据，不多不少。
+## 核心特点
+
+| 特点 | 说明 |
+|------|------|
+| 客户端指定字段 | 要什么字段就写什么字段，服务器不会多返回 |
+| 不允许递归查询 | 防止恶意用户执行成本过高的操作 |
+| 不允许任意搜索条件 | 不能写“查找在美国出生并居住在欧洲的人”这种模糊条件 |
+| 响应结构镜像查询结构 | 返回的 JSON 形状和请求一模一样 |
+
+## 示例3-13：群聊应用的 GraphQL 查询
+
+```graphql
+query ChatApp {
+    channels {
+        name
+        recentMessages(latest: 50) {
+            timestamp
+            content
+            sender {
+                fullName
+                imageUrl
+            }
+            replyTo {
+                content
+                sender {
+                    fullName
+                }
+            }
+        }
+    }
+}
+```
+
+**含义**：
+- 请求所有频道（channels）的 `name`
+- 每个频道中最近 50 条消息（recentMessages），每条消息包含：
+  - `timestamp`、`content`
+  - 发送者（sender）的 `fullName`、`imageUrl`
+  - 如果这条消息是回复（replyTo），则包含被回复消息的 `content` 和发送者的 `fullName`
+
+---
+
+## 示例3-14：对应的响应
+
+```json
+{
+    "data": {
+        "channels": [
+            {
+                "name": "#general",
+                "recentMessages": [
+                    {
+                        "timestamp": 1693143014,
+                        "content": "Hey! How are y'all doing?",
+                        "sender": {"fullName": "Aaliyah", "imageUrl": "https://..."},
+                        "replyTo": null
+                    },
+                    {
+                        "timestamp": 1693143024,
+                        "content": "Great! And you?",
+                        "sender": {"fullName": "Caleb", "imageUrl": "https://..."},
+                        "replyTo": {
+                            "content": "Hey! How are y'all doing?",
+                            "sender": {"fullName": "Aaliyah"}
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+}
+```
+
+**响应特点**：
+- 形状完全对应查询结构
+- 只包含请求的字段
+- 同一用户的多条消息会重复嵌入其姓名和头像（接受冗余，换取客户端简单）
+- replyTo 直接嵌入被回复消息的内容，而不是 ID（避免客户端额外请求）
+## 事件溯源与 CQRS
+- **事件溯源**：以不可变的事件日志作为真相来源，每次数据变更追加为一个事件（如"座位已预订"、"预订已取消"），从不修改或删除已有事件。
+- **CQRS（命令查询责任分离）**：从同一事件日志派生出多个针对不同读场景优化的物化视图（读模型），写操作与读操作使用不同的数据表示。
+- 示例：会议管理系统（图3-8）
+![](https://ddia.vonng.com/fig/ddia_0308.png)
+图 3-8. 使用不可变事件日志作为真相来源（权威数据源），并从中派生物化视图。
+
+| 事件                          | 含义                                          |
+| --------------------------- | ------------------------------------------- |
+| `conference_created`        | 创建会议：Data-Intensive App Developers，会议ID 123 |
+| `registrations_opened`      | 开放注册                                        |
+| `seats_reserved`            | 客户331预订3个座位，预订ID 4001                       |
+| `booking_payment_confirmed` | 客户331支付1497.00美元                            |
+| `booking_cancelled`         | 客户345取消预订ID 4003                            |
+所有事件按时间顺序追加，不可修改。
+- 从同一事件日志派生的物化视图
+- **视图1：Customer booking confirmation（客户预订确认）**
+```json
+
+{
+    "booking_id": 4001,
+    "conference_name": "Data-Intensive App ...",
+    "paid_amount": 1497.0,
+    "paid_currency": "USD",
+    "unassigned_seats": 1,
+    "assigned_seats": [
+        {"badge_id": 501, "badge_name": "Aaliyah"},
+        {"badge_id": 502, "badge_name": "Caleb"}
+    ]
+}
+```
+用途：展示给客户的预订确认页面
+- **视图2：Conference organizer dashboard（组织者仪表板）**
+	- seats booked（已预订座位数）
+	- venue capacity（场地容量）
+	- registration open（注册是否开放）
+	- conference begins（会议是否开始）
+	用途：会议组织者实时监控状态
+	关键点：
+
+| 原则         | 图中的体现                                                   |
+| ---------- | ------------------------------------------------------- |
+| 事件不可变      | 每个事件只有时间戳和字段，没有"修改已有事件"                                 |
+| 事件用过去时     | `seats_reserved`、`booking_cancelled` 而非 `reserve_seats` |
+| 同一日志派生出多视图 | 客户确认视图 + 组织者仪表板，来自同一组事件                                 |
+| 视图可重新计算    | 删除视图后重放所有事件，可重建相同结果                                     |
+总结：左边一列事件日志记录"发生了什么"，右边多个物化视图回答"现在是什么状态"。同一个源头，多种读法。
+## 数据框、矩阵与数组
+图 3-9 显示了这种转换的简单示例。左侧是不同用户如何评价各种电影的关系表（评分为 1 到 5），右侧数据已转换为矩阵，其中每列是一部电影，每行是一个用户（类似于电子表格中的 _数据透视表_）。矩阵是 _稀疏_ 的，这意味着许多用户-电影组合没有数据，但这没关系。这个矩阵可能有数千列，因此不太适合关系数据库，但数据框和提供稀疏数组的库（如 Python 的 NumPy）可以轻松处理此类数据。
+![](https://ddia.vonng.com/fig/ddia_0309.png)
+图 3-9. 将电影评分的关系数据库转换为矩阵表示。
+矩阵只能包含数字，各种技术用于将非数字数据转换为矩阵中的数字。例如：
+- 日期（在 图 3-9 的示例矩阵中省略了）可以缩放为某个合适范围内的浮点数。
+- 对于只能取一小组固定值之一的列（例如，电影数据库中电影的类型），通常使用 _独热编码_：我们为每个可能的值创建一列（一个用于"喜剧"，一个用于"剧情"，一个用于"恐怖"等），对于代表电影的每一行，我们在对应于该电影类型的列中放置 1，在所有其他列中放置 0。这种表示也很容易推广到适合多种类型的电影。
+一旦数据以数字矩阵的形式存在，它就适合线性代数运算，这构成了许多机器学习算法的基础。例如，图 3-9 中的数据可能是推荐用户可能喜欢的电影系统的一部分。数据框足够灵活，允许数据从关系形式逐渐演变为矩阵表示，同时让数据科学家控制最适合实现数据分析或模型训练过程目标的表示。
+## 总结
+- _关系模型_ 针对数据以**行和列的表单**形式出现的用例，以及一个表与另一个表之间通过**外键关联**的情况。
+- _文档模型_ 针对数据以独立的 JSON 文档形式出现的用例，以及一个文档与另一个文档之间的关系很少的情况。
+- _图数据模型_ 走向相反的方向，针对任何东西都可能与一切相关的用例，以及查询可能需要遍历多个跳跃才能找到感兴趣的数据（可以使用 Cypher、SPARQL 或 Datalog 中的递归查询来表达）。
+- _数据框_ 将关系数据推广到大量列，从而在数据库和构成大量机器学习、统计数据分析和科学计算基础的多维数组之间提供桥梁。
+- _事件溯源_：将数据表示为不可变事件的仅追加日志，这对于建模复杂业务领域中的活动可能是有利的。仅追加日志有利于写入数据（正如我们将在 [第 4 章](https://ddia.vonng.com/ch4/#ch_storage) 中看到的）；为了支持高效查询，事件日志通过 CQRS 转换为读优化的物化视图。
+# 4. 存储与检索
+- 在最基础的层面上，数据库需要做两件事：当你给它一些数据时，它应该存储这些数据；当你之后再询问时，它应该把数据返回给你。在本章中，我们从数据库的角度讨论同样的问题：数据库如何存储你提供的数据，以及当你请求时如何再次找到这些数据。并且考虑不同存储请求方式的优化。
+- 本章首先研究两种用于 OLTP 的存储引擎家族：写入不可变数据文件的 _日志结构_ 存储引擎，以及像 _B 树_ 这样就地更新数据的存储引擎。这些结构既用于键值存储，也用于二级索引。随后在 [“分析型数据存储”](https://ddia.vonng.com/ch4/#sec_storage_analytics) 中，我们将讨论一系列针对分析优化的存储引擎；在 [“多维索引与全文索引”](https://ddia.vonng.com/ch4/#sec_storage_multidimensional) 中，我们将简要介绍用于更高级查询（如文本检索）的索引。
+## OLTP 系统的存储与索引
+
+| 概念          | 说明                         |
+| ----------- | -------------------------- |
+| **OLTP**    | 在线事务处理，面向大量小规模读写（如用户注册、下单） |
+| **日志（Log）** | 仅追加的磁盘文件，写入高效              |
+| **索引**      | 从主数据派生的额外结构，用于加速读取         |
+
+- 最简单的存储：两个Bash函数
+
+```bash
+db_set () {
+  echo "$1,$2" >> database   # 追加到文件末尾
+}
+
+db_get () {
+  grep "^$1," database | sed -e "s/^$1,//" | tail -n 1  # 扫描整个文件
+}
+```
+
+**使用示例**：
+
+```bash
+$ db_set 12 '{"name":"London","attractions":["Big Ben","London Eye"]}'
+$ db_set 42 '{"name":"San Francisco","attractions":["Golden Gate Bridge"]}'
+$ db_get 42
+{"name":"San Francisco","attractions":["Golden Gate Bridge"]}
+```
+
+**多次更新同一个key**：
+
+```bash
+$ db_set 42 '{"name":"San Francisco","attractions":["Exploratorium"]}'
+$ db_get 42
+{"name":"San Francisco","attractions":["Exploratorium"]}
+
+$ cat database
+12,{"name":"London","attractions":["Big Ben","London Eye"]}
+42,{"name":"San Francisco","attractions":["Golden Gate Bridge"]}
+42,{"name":"San Francisco","attractions":["Exploratorium"]}
+```
+
+- 存储：日志（Log）
+	- **原理**：每次写入直接追加到文件末尾
+	- **优点**：写入非常高效（O(1)）
+	- **真实数据库**：同样使用仅追加的数据文件作为日志
+	- **额外处理**：并发写入、空间回收、崩溃恢复
+> 注：日志不一定是人类可读的文本，可以是二进制的。
+-  **索引的作用**：用额外结构（如排序、哈希）加速查找。
+-  索引的代价
+
+| 代价类型 | 说明 |
+|----------|------|
+| **写入变慢** | 每次写入不仅要写数据，还要更新索引 |
+| **占用空间** | 索引消耗额外磁盘空间 |
+| **需要手动选择** | 数据库不会自动为所有字段建索引，由开发者根据查询模式选择 |
+
+- 权衡
+> 	**索引加快读查询，但减慢写入速度。**
+	- 日志（仅追加）是最快的写入方式
+	- 任何索引都会破坏这种"纯粹"的写入性能
+	- 需要根据应用的查询模式，选择收益最大的索引
+- 总结：**日志（仅追加文件）= 写入快。索引 = 读取快，但写入变慢且占空间。OLTP系统需要你在两者之间做权衡。**
+### 日志结构存储

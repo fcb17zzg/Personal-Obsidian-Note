@@ -89,6 +89,12 @@ settings:
                 value: theme-dark-radiation
 */
 
+/* If another plugin injects a file/folder icon element, hide the theme fallback pseudo-icon. */
+.nav-file-title-content:has(svg, .svg-icon, .iconize-icon, .nav-file-icon)::before,
+.nav-file-title:has(.nav-file-icon, .iconize-icon) .nav-file-title-content::before,
+.nav-folder-title-content:has(svg, .svg-icon, .iconize-icon, .nav-folder-icon)::before,
+.nav-folder-title:has(.nav-folder-icon, .iconize-icon) .nav-folder-title-content::before{display:none !important;}
+
 
 /* @settings
 name: 🗂️ Phycat card Layout
